@@ -1,0 +1,209 @@
+#title 青空下的抉择（引擎测试剧本）
+#entry prologue
+#mutex 社团二选一: club_music, club_sports
+#mutex 心意归属: love_lin, love_ya
+
+// ============================================================
+// 共通线
+// ============================================================
+=== prologue ===
+春。樱花飘落的校门口，我攥着社团申请表站在公告栏前。
+林夏：同学，你也是来报名的吗？
+@set week = 1
+@goto day1
+
+=== day1 ===
+【第一周】走廊尽头传来两个社团的招新声。
+@choice
+  + 去轻音部试听 -> club_music_route
+  + 去田径队看看 -> club_sports_route
+  + 加入神秘的天文同好会 -> club_hidden_gate if affinity_lin >= 2
+
+=== club_music_route ===
+轻音部的练习室里，吉他箱堆成小山。
+林夏：欢迎来到轻音部，以后请多指教啦。
+@set club_music = true
+@set affinity_lin = 1
+@goto week2
+
+=== club_sports_route ===
+田径场上热气蒸腾，学姐递来秒表。
+雅宁：跑得动吗？先跑五圈再说。
+@set club_sports = true
+@set affinity_ya = 1
+@goto week2
+
+=== club_hidden_gate ===
+// 该入口要求 affinity_lin >= 2，但共通线从未把它加到 2 —— 死选项
+林夏竟然在天文社门口等我。
+林夏：你果然来了。
+@set club_hidden = true
+@goto week2
+
+// ============================================================
+// 第二周：共同事件 + 好感度
+// ============================================================
+=== week2 ===
+@set week = 2
+放学后的图书馆，两人占着同一张桌子。
+@choice
+  + 帮林夏搬乐谱 -> lin_event if club_music == true
+  + 给雅宁送运动饮料 -> ya_event if club_sports == true
+  + 独自复习 -> solo_study
+  + 临时转去田径队训练 -> transfer_scene if club_music == true set club_sports = true
+
+=== transfer_scene ===
+// 互斥演示：club_music 已为 true，入口赋值又把 club_sports 置 true，
+// 具体路径会被互斥规则剪掉 —— 抽象分析以为能到，实际一周目凑不齐
+我抱着乐谱站在田径场边，忽然意识到自己不可能同时属于两个社团。
+@set transfer = true
+@goto week3
+
+=== lin_event ===
+林夏：谢谢你……作为回礼，教你弹一首曲子吧。
+@set affinity_lin = 2
+@set score = 10
+@goto week3
+
+=== ya_event ===
+雅宁：算你有眼力见。明天训练别迟到。
+@set affinity_ya = 2
+@set score = 10
+@goto week3
+
+=== solo_study ===
+窗外的晚霞很安静，我把笔记又翻了一遍，又整理了社团联展的资料。
+@set score = 10
+@goto week3
+
+// ============================================================
+// 第三周：分歧加深
+// ============================================================
+=== week3 ===
+@set week = 3
+周末到了，手机屏幕亮起。
+@choice
+  + 约林夏去乐器街 -> lin_date if affinity_lin >= 1
+  + 陪雅宁参加地区大赛 -> ya_date if affinity_ya >= 1
+  + 宅家打游戏 -> weekend_home
+
+=== lin_date ===
+林夏在乐器街淘到一枚旧拨片，郑重地放进我手心。
+林夏：这个给你，算是我们的暗号。
+@set love_lin = true
+@set affinity_lin = 3
+@set score = 20
+@goto week4
+
+=== ya_date ===
+冲线那一刻，雅宁第一个朝看台的我挥手。
+雅宁：看到了吗？我赢了。
+@set love_ya = true
+@set affinity_ya = 3
+@set score = 20
+@goto week4
+
+=== weekend_home ===
+我在游戏里虚度了两天，心里却有点空落落的。
+@goto week4
+
+// ============================================================
+// 第四周：危机事件
+// ============================================================
+=== week4 ===
+@set week = 4
+连日暴雨。社团预算被学生会冻结，必须有人去说明。
+@choice
+  + 主动站出来承担 -> crisis_brave
+  + 把机会让给别人 -> crisis_skip
+
+=== crisis_brave ===
+我在学生会办公室讲了整整二十分钟，衬衫被汗浸透。
+@set courage = true
+@set score = 25
+@goto festival_prep
+
+=== crisis_skip ===
+散会后没人说话，只有雨声敲打着窗。
+@goto festival_prep
+
+// ============================================================
+// 学园祭前夜：最终选择
+// ============================================================
+=== festival_prep ===
+@set week = 5
+学园祭前夜，祭台前的灯一盏盏亮起来。
+@choice
+  + 向林夏告白 -> lin_confession if love_lin == true
+  + 向雅宁告白 -> ya_confession if love_ya == true
+  + 把心意藏起来 -> no_confession
+
+=== lin_confession ===
+林夏低头看着脚尖，又抬起头，眼睛亮得像星星。
+林夏：……其实，我等这句话很久了。
+@set route_lin = true
+@goto ending_gate
+
+=== ya_confession ===
+雅宁愣了两秒，然后用力揉了揉我的头发。
+雅宁：笨蛋，这种事要我先说吗。
+@set route_ya = true
+@goto ending_gate
+
+=== no_confession ===
+祭典的烟火在头顶炸开，我什么都没说出口。
+@goto ending_gate
+
+// ============================================================
+// 结局判定门
+// ============================================================
+=== ending_gate ===
+@if courage == true and score >= 25 -> ending_true
+@if route_lin == true -> ending_lin
+@if route_ya == true -> ending_ya
+@if score >= 10 -> ending_good
+@if dropped_out == true -> ending_bad
+@if club_music == true and club_sports == true -> ending_impossible
+@goto ending_normal
+
+// ---- 真结局 ----
+=== ending_true ===
+学园祭的大幕拉开，我们的曲子响彻整个礼堂。
+林夏：这不是结束，是开场曲哦。
+后来的每个春天，我都会想起这个夜晚。
+@ending end_true 真结局·开场曲
+
+// ---- 林夏个人结局 ----
+=== ending_lin ===
+轻音部的告别演出上，林夏把那枚旧拨片挂在了我的琴头。
+林夏：以后也要一起弹下去。
+@ending end_lin 林夏结局·旧拨片
+
+// ---- 雅宁个人结局 ----
+=== ending_ya ===
+毕业相册里，雅宁把金牌挂在了我的脖子上。
+雅宁：我的荣耀，分你一半。
+@ending end_ya 雅宁结局·半块金牌
+
+// ---- 好结局（无告白但积累了足够努力）----
+=== ending_good ===
+没有恋爱，也没有遗憾。我拿到了学年贡献奖。
+旁白：有些青春，认真活过就已经足够。
+@ending end_good 好结局·努力的回报
+
+// ---- 普通结局 ----
+=== ending_normal ===
+樱花再次落下时，我已经能平静地走过那条走廊。
+@ending end_normal 普通结局·平凡的春天
+
+// ---- 坏结局：退社 ----
+=== ending_bad ===
+// 入口条件 dropped_out == true，但全剧本从未给 dropped_out 赋过 true
+// —— 典型的"编剧忘了写赋值"型不可达结局
+社团解散那天，练习室的门锁生了锈。
+@ending end_bad 坏结局·生锈的门锁
+
+// ---- 互斥冲突演示结局：要求同时属于两个社团（现实中不可能）----
+=== ending_impossible ===
+同时站在两个舞台上的我，在掌声里裂成了两半。
+@ending end_impossible 不可能结局·分身
